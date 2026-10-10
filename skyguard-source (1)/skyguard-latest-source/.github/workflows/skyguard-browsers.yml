@@ -1,0 +1,36 @@
+name: SkyGuard browser regressions
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browsers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install matching browser engines and Linux dependencies
+        run: pnpm --filter @workspace/skyguard exec playwright install --with-deps chromium firefox webkit
+      - run: pnpm --filter @workspace/skyguard typecheck:e2e
+      - name: Run desktop/mobile Chromium, Firefox, desktop WebKit and iPhone WebKit
+        run: pnpm --filter @workspace/skyguard test:e2e
+      - name: Save reports and failure evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: skyguard-browser-results
+          path: generated-artifacts/skyguard-e2e/
+          retention-days: 14
